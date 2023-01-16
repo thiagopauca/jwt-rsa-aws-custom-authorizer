@@ -3,6 +3,7 @@ require('dotenv').config({ silent: true });
 const jwksClient = require('jwks-rsa');
 const jwt = require('jsonwebtoken');
 const util = require('util');
+const decode = require('jwt-claims');
 
 const getPolicyDocument = (effect, resource) => {
     const policyDocument = {
@@ -55,11 +56,24 @@ module.exports.authenticate = (params) => {
             const signingKey = key.publicKey || key.rsaPublicKey;
             return jwt.verify(token, signingKey, jwtOptions);
         })
-        .then((decoded)=> ({
-            principalId: decoded.sub,
-            policyDocument: getPolicyDocument('Allow', params.methodArn),
-            context: { scope: decoded.scope }
-        }));
+        .then((decoded)=> {
+            const claims = decode(token)
+            console.log('Claims: ', claims)
+            return {
+                principalId: decoded.sub,
+                policyDocument: getPolicyDocument('Allow', params.methodArn),
+                context: { 
+                    scope: decoded.scope,
+                    'organization-name': claims.organization,
+                    'organization-id': claims.organization_id, 
+                    'user-id': claims.sub,
+                    'user-name': claims.given_name,
+                    'user-family-name': claims.family_name,
+                    'user-full-name': claims.name,
+                    'user-email': claims.email,
+                }
+            }
+        });
 }
 
  const client = jwksClient({
